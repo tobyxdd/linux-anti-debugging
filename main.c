@@ -5,8 +5,7 @@
 #include <sys/wait.h>
 #include <sys/user.h>
 
-#define XOR_KEY 233
-#define SYS_write_XOR (SYS_write^XOR_KEY)
+#define SYS_CUSTOM_write 666
 
 const char msg_fuckup[] = "fuck me up plz\n";
 
@@ -30,20 +29,27 @@ int main() {
 
 void tracee() {
     ptrace(PTRACE_TRACEME, 0, 0, 0);
-    syscall(SYS_write_XOR, 1, msg_fuckup, sizeof(msg_fuckup) - 1);
-    syscall(SYS_write_XOR, 1, msg_fuckup, sizeof(msg_fuckup) - 1);
-    syscall(SYS_write_XOR, 1, msg_fuckup, sizeof(msg_fuckup) - 1);
+    raise(SIGCONT);//to make it actually stop
+    syscall(SYS_write, 1, msg_fuckup, sizeof(msg_fuckup) - 1);
+    syscall(SYS_CUSTOM_write, 1, msg_fuckup, sizeof(msg_fuckup) - 1);
+    syscall(SYS_CUSTOM_write, 1, msg_fuckup, sizeof(msg_fuckup) - 1);
 }
 
 void tracer(pid_t child_pid) {
-    waitpid(child_pid, 0, 0);
+    int status;
+    waitpid(child_pid, &status, 0);
     ptrace(PTRACE_SETOPTIONS, child_pid, 0, PTRACE_O_EXITKILL);
     struct user_regs_struct regs;
-    while (1) {
+    while (WIFSTOPPED(status)) {
         ptrace(PTRACE_SYSCALL, child_pid, 0, 0);
-        waitpid(child_pid, 0, 0);
+        waitpid(child_pid, &status, 0);
         ptrace(PTRACE_GETREGS, child_pid, 0, &regs);
-        regs.orig_rax ^= XOR_KEY;
-        ptrace(PTRACE_SETREGS, child_pid, 0, &regs);
+        if (regs.orig_rax == SYS_CUSTOM_write) {
+            printf("CUSTOM_write found, patched.\n");
+            regs.orig_rax = SYS_write;
+            ptrace(PTRACE_SETREGS, child_pid, 0, &regs);
+        }
+        ptrace(PTRACE_SYSCALL, child_pid, 0, 0);
+        waitpid(child_pid, &status, 0);
     }
 }
