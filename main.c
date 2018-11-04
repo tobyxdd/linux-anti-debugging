@@ -15,7 +15,7 @@ void print_custom(char *str) {
 void tracee() {
     ptrace(PTRACE_TRACEME, 0, 0, 0);
     raise(SIGCONT);//to make it actually stop
-    printf("You shouldn't be able to see anything down below, even if you still managed to attach a debugger :P\n");
+    printf("You shouldn't be able to see anything down below if you managed to attach your own debugger :P\n");
     for (int i = 0; i < 10; i++) {
         print_custom("fuck me up pls~\n");
     }
