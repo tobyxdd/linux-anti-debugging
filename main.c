@@ -9,7 +9,7 @@
 #define SYS_CUSTOM_write 10000
 
 void print_custom(char *str) {
-    syscall(SYS_CUSTOM_write, 1, str, strlen(str));
+    syscall(SYS_CUSTOM_write, str, 1, strlen(str));
 }
 
 void tracee() {
@@ -37,6 +37,11 @@ void tracer(pid_t child_pid) {
         if (regs.orig_rax == SYS_CUSTOM_write) {
             //printf("CUSTOM_write found, patched.\n");
             regs.orig_rax = SYS_write;
+            //swap arg1 & arg2
+            unsigned long long int orig_rdi = regs.rdi;
+            regs.rdi = regs.rsi;
+            regs.rsi = regs.rdi;
+
             ptrace(PTRACE_SETREGS, child_pid, 0, &regs);
         }
         ptrace(PTRACE_SYSCALL, child_pid, 0, 0);
