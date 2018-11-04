@@ -40,7 +40,7 @@ void tracer(pid_t child_pid) {
             //swap arg1 & arg2
             unsigned long long int orig_rdi = regs.rdi;
             regs.rdi = regs.rsi;
-            regs.rsi = regs.rdi;
+            regs.rsi = orig_rdi;
 
             ptrace(PTRACE_SETREGS, child_pid, 0, &regs);
         }
